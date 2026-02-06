@@ -4,128 +4,138 @@ import joblib
 import requests
 from streamlit_lottie import st_lottie
 
-
-
-# --- UI LAYOUT ---
-# Define the columns FIRST
-col1, col2 = st.columns([2, 1]) 
-
-with col1:
-    st.title("🛡️ ChurnGuard AI")
-    st.subheader("Predicting customer loyalty with high-precision ML.")
-    st.write("Fill in the customer details below to see the churn risk.")
-
-# Now col2 is safely defined and can be used
-with col2:
-    if 'lottie_anim' in globals() and lottie_anim is not None:
-        st_lottie(lottie_anim, height=200, key="coding")
-    else:
-        st.markdown("### 📊") # Fallback emoji if animation fails
-
-
-def load_lottieurl(url):
-    try:
-        r = requests.get(url, timeout=5) # Added a timeout
-        if r.status_code != 200:
-            return None
-        return r.json()
-    except Exception:
-        return None
-
-lottie_anim = load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_m9p9iz6j.json")
-
-# --- THEN UPDATE THE DISPLAY SECTION ---
-with col2:
-    if lottie_anim:
-        st_lottie(lottie_anim, height=200, key="coding")
-    else:
-        st.write("📈") # Fallback to an emoji if the animation fails
-
-# --- CONFIG & STYLING ---
+# --- 1. PAGE CONFIG & STYLES ---
 st.set_page_config(page_title="ChurnGuard AI", page_icon="🛡️", layout="wide")
 
-def local_css():
-    st.markdown("""
-        <style>
-        /* Fade-in Animation */
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .main { animation: fadeIn 2s; }
-        
-        /* Floating Button Effect */
-        div.stButton > button:first-child {
-            background-color: #6200ea;
-            color: white;
-            border-radius: 20px;
-            transition: all 0.3s ease-in-out;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-        div.stButton > button:hover {
-            transform: scale(1.05);
-            background-color: #3700b3;
-        }
-        </style>
+# Custom CSS for animations and styling
+st.markdown("""
+    <style>
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .main { animation: fadeIn 1.5s; }
+    .stButton>button {
+        width: 100%;
+        border-radius: 25px;
+        height: 3em;
+        background-color: #6200ea;
+        color: white;
+        font-weight: bold;
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        border: 2px solid #6200ea;
+        background-color: white;
+        color: #6200ea;
+        transform: scale(1.02);
+    }
+    </style>
     """, unsafe_allow_html=True)
 
-local_css()
-
-# --- LOAD ASSETS ---
+# --- 2. HELPER FUNCTIONS ---
 def load_lottieurl(url):
-    r = requests.get(url)
-    return r.json() if r.status_code == 200 else None
+    try:
+        r = requests.get(url, timeout=5)
+        return r.json() if r.status_code == 200 else None
+    except:
+        return None
 
-lottie_anim = load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_m9p9iz6j.json")
+# Load animation
+lottie_url = "https://assets10.lottiefiles.com/packages/lf20_m9p9iz6j.json"
+lottie_anim = load_lottieurl(lottie_url)
 
-# --- UI LAYOUT ---
-with st.container():
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        st.title("🛡️ ChurnGuard AI")
-        st.subheader("Predicting customer loyalty with high-precision Machine Learning.")
-        st.write("Fill in the customer details on the right to see the churn risk.")
-    with col2:
-        st_lottie(lottie_anim, height=200, key="coding")
+# --- 3. HEADER SECTION ---
+# We define col1 and col2 here so they are available globally
+header_col1, header_col2 = st.columns([2, 1])
+
+with header_col1:
+    st.title("🛡️ ChurnGuard AI")
+    st.markdown("### High-Precision Customer Loyalty Prediction")
+    st.write("Our ML model analyzes behavior patterns to predict if a customer is likely to leave your service.")
+
+with header_col2:
+    if lottie_anim:
+        st_lottie(lottie_anim, height=200, key="header_anim")
+    else:
+        st.markdown("# 📊")
 
 st.divider()
 
-# --- INPUT FORM ---
-try:
-    model = joblib.load('churn_model.pkl')
-    scaler = joblib.load('scaler.pkl')
-    encoders = joblib.load('encoders.pkl')
+# --- 4. LOAD MODEL & PREPROCESSORS ---
+@st.cache_resource # Keeps model in memory for speed
+def load_ml_assets():
+    try:
+        model = joblib.load('churn_model.pkl')
+        scaler = joblib.load('scaler.pkl')
+        encoders = joblib.load('encoders.pkl')
+        return model, scaler, encoders
+    except Exception as e:
+        st.error(f"Error loading model files: {e}")
+        return None, None, None
 
-    with st.expander("📝 Customer Details Input", expanded=True):
-        c1, c2, c3 = st.columns(3)
-        age = c1.number_input("Age", 18, 100, 30)
-        gender = c2.selectbox("Gender", ["Male", "Female"])
-        tenure = c3.slider("Tenure (Months)", 1, 120, 12)
-        
-        usage = c1.slider("Usage Frequency", 1, 30, 15)
-        calls = c2.number_input("Support Calls", 0, 20, 2)
-        delay = c3.number_input("Payment Delay (Days)", 0, 30, 0)
-        
-        sub_type = c1.selectbox("Subscription Type", ["Basic", "Standard", "Premium"])
-        contract = c2.selectbox("Contract Length", ["Monthly", "Quarterly", "Annual"])
-        spend = c3.number_input("Total Spend", 0, 10000, 500)
+model, scaler, encoders = load_ml_assets()
 
-    # --- PREDICTION LOGIC ---
-    if st.button("🔮 Predict Churn Risk"):
-        # Encode inputs
-        g_enc = encoders['Gender'].transform([gender])[0]
-        s_enc = encoders['Subscription Type'].transform([sub_type])[0]
-        c_enc = encoders['Contract Length'].transform([contract])[0]
+# --- 5. INPUT FORM ---
+if model:
+    with st.container():
+        st.subheader("📝 Enter Customer Attributes")
         
-        features = [[age, g_enc, tenure, usage, calls, delay, s_enc, c_enc, spend, 0]] # '0' for Last Interaction dummy
-        features_scaled = scaler.transform(features)
+        # Create input grid
+        row1_col1, row1_col2, row1_col3 = st.columns(3)
+        row2_col1, row2_col2, row2_col3 = st.columns(3)
         
-        prediction = model.predict(features_scaled)
-        prob = model.predict_proba(features_scaled)[0][1]
+        # Row 1 Inputs
+        age = row1_col1.number_input("Age", 18, 100, 30)
+        gender = row1_col2.selectbox("Gender", ["Male", "Female"])
+        tenure = row1_col3.slider("Tenure (Months)", 1, 120, 12)
+        
+        # Row 2 Inputs
+        usage = row2_col1.slider("Usage Frequency", 1, 30, 15)
+        calls = row2_col2.number_input("Support Calls", 0, 20, 2)
+        delay = row2_col3.number_input("Payment Delay (Days)", 0, 30, 0)
+        
+        # Additional Inputs in an expander for cleanliness
+        with st.expander("More Subscription Details"):
+            sub_col1, sub_col2, sub_col3 = st.columns(3)
+            sub_type = sub_col1.selectbox("Subscription Type", ["Basic", "Standard", "Premium"])
+            contract = sub_col2.selectbox("Contract Length", ["Monthly", "Quarterly", "Annual"])
+            spend = sub_col3.number_input("Total Spend ($)", 0, 10000, 500)
 
-        if prediction[0] == 1:
-            st.error(f"⚠️ **High Risk!** The customer is likely to churn. (Probability: {prob:.2%})")
-            st.toast("Churn Alert!", icon='🚨')
-        else:
-            st.success(f"✅ **Safe!** This customer is likely to stay. (Probability of churn: {prob:.2%})")
-            st.balloons()
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # --- 6. PREDICTION LOGIC ---
+    if st.button("🔮 ANALYZE RISK"):
+        try:
+            # Match encoding logic from training
+            g_enc = encoders['Gender'].transform([gender])[0]
+            s_enc = encoders['Subscription Type'].transform([sub_type])[0]
+            c_enc = encoders['Contract Length'].transform([contract])[0]
+            
+            # Prepare feature array (Ensure order matches training exactly)
+            # Order: Age, Gender, Tenure, Usage, Calls, Delay, SubType, Contract, Spend, Last Interaction (dummy)
+            features = [[age, g_enc, tenure, usage, calls, delay, s_enc, c_enc, spend, 0]]
+            features_scaled = scaler.transform(features)
+            
+            # Predict
+            prediction = model.predict(features_scaled)
+            prob = model.predict_proba(features_scaled)[0][1]
 
-except FileNotFoundError:
-    st.warning("Please run the training script first to generate the model files!")
+            # Display Results
+            st.divider()
+            res_col1, res_col2 = st.columns(2)
+            
+            with res_col1:
+                if prediction[0] == 1:
+                    st.error("### 🚨 HIGH RISK")
+                    st.write(f"This customer is highly likely to churn.")
+                else:
+                    st.success("### ✅ LOW RISK")
+                    st.write(f"This customer is likely to remain loyal.")
+                    st.balloons()
+            
+            with res_col2:
+                st.metric(label="Churn Probability", value=f"{prob:.1%}")
+                st.progress(prob)
+
+        except Exception as e:
+            st.error(f"Prediction Error: {e}")
+else:
+    st.info("Waiting for model files to be uploaded to the repository...")

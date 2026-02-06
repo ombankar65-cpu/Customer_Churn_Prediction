@@ -5,6 +5,24 @@ import requests
 from streamlit_lottie import st_lottie
 
 
+
+# --- UI LAYOUT ---
+# Define the columns FIRST
+col1, col2 = st.columns([2, 1]) 
+
+with col1:
+    st.title("🛡️ ChurnGuard AI")
+    st.subheader("Predicting customer loyalty with high-precision ML.")
+    st.write("Fill in the customer details below to see the churn risk.")
+
+# Now col2 is safely defined and can be used
+with col2:
+    if 'lottie_anim' in globals() and lottie_anim is not None:
+        st_lottie(lottie_anim, height=200, key="coding")
+    else:
+        st.markdown("### 📊") # Fallback emoji if animation fails
+
+
 def load_lottieurl(url):
     try:
         r = requests.get(url, timeout=5) # Added a timeout

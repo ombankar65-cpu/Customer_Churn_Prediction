@@ -4,6 +4,25 @@ import joblib
 import requests
 from streamlit_lottie import st_lottie
 
+
+def load_lottieurl(url):
+    try:
+        r = requests.get(url, timeout=5) # Added a timeout
+        if r.status_code != 200:
+            return None
+        return r.json()
+    except Exception:
+        return None
+
+lottie_anim = load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_m9p9iz6j.json")
+
+# --- THEN UPDATE THE DISPLAY SECTION ---
+with col2:
+    if lottie_anim:
+        st_lottie(lottie_anim, height=200, key="coding")
+    else:
+        st.write("📈") # Fallback to an emoji if the animation fails
+
 # --- CONFIG & STYLING ---
 st.set_page_config(page_title="ChurnGuard AI", page_icon="🛡️", layout="wide")
 
